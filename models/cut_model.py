@@ -5,6 +5,7 @@ from . import networks
 from .patchnce import PatchNCELoss
 import util.util as util
 from .modules import loss
+from util.util import gaussian
 
 class CUTModel(BaseModel):
     """ This class implements CUT and FastCUT model, described in the paper
@@ -35,6 +36,7 @@ class CUTModel(BaseModel):
         parser.add_argument('--flip_equivariance',
                             type=util.str2bool, nargs='?', const=True, default=False,
                             help="Enforce flip-equivariance as additional regularization. It's used by FastCUT, but not CUT")
+        parser.add_argument('--contrastive_noise', type=float, default=0.0, help='whether to add noise to contrastive')
 
         parser.set_defaults(pool_size=0)  # no image pooling
 
@@ -211,6 +213,9 @@ class CUTModel(BaseModel):
 
         total_nce_loss = 0.0
         for f_q, f_k, crit, nce_layer in zip(feat_q_pool, feat_k_pool, self.criterionNCE, self.nce_layers):
+            if self.contrastive_noise>0.0:
+                f_q=gaussian(f_q,self.contrastive_noise)
+                f_k=gaussian(f_k,self.contrastive_noise)
             loss = crit(f_q, f_k) * self.opt.lambda_NCE
             total_nce_loss += loss.mean()
 

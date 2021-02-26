@@ -6,6 +6,7 @@ from .patchnce import PatchNCELoss
 import util.util as util
 from .modules import loss
 import torch.nn.functional as F
+from util.util import gaussian
 
 class CUTSemanticMaskModel(BaseModel):
     """ This class implements CUT and FastCUT model, described in the paper
@@ -44,6 +45,7 @@ class CUTSemanticMaskModel(BaseModel):
         parser.add_argument('--out_mask', action='store_true', help='use loss out mask')
         parser.add_argument('--lambda_out_mask', type=float, default=10.0, help='weight for loss out mask')
         parser.add_argument('--loss_out_mask', type=str, default='L1', help='loss mask')
+        parser.add_argument('--contrastive_noise', type=float, default=0.0, help='whether to add noise to contrastive')
 
         parser.set_defaults(pool_size=0)  # no image pooling
 
@@ -276,6 +278,9 @@ class CUTSemanticMaskModel(BaseModel):
 
         total_nce_loss = 0.0
         for f_q, f_k, crit, nce_layer in zip(feat_q_pool, feat_k_pool, self.criterionNCE, self.nce_layers):
+            if self.contrastive_noise>0.0:
+                f_q=gaussian(f_q,self.contrastive_noise)
+                f_k=gaussian(f_k,self.contrastive_noise)            
             loss = crit(f_q, f_k) * self.opt.lambda_NCE
             total_nce_loss += loss.mean()
 
