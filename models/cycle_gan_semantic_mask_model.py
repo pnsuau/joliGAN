@@ -164,7 +164,11 @@ class CycleGANSemanticMaskModel(BaseModel):
             if opt.disc_in_mask:
                 self.fake_A_pool_mask = ImagePool(opt.pool_size)
                 self.fake_B_pool_mask = ImagePool(opt.pool_size)
-                
+
+            if opt.pool_size_failed>0:
+                self.real_A_pool_failed = ImagePool(opt.pool_size_failed)
+                self.real_B_pool_failed = ImagePool(opt.pool_size_failed)
+            
             # define loss functions
             if opt.D_label_smooth:
                 target_real_label = 0.9
@@ -200,6 +204,7 @@ class CycleGANSemanticMaskModel(BaseModel):
             self.rec_noise = opt.rec_noise
             self.D_noise = opt.D_noise
 
+            self.niter=0
             
     def set_input(self, input):
         AtoB = self.opt.direction == 'AtoB'
@@ -214,6 +219,21 @@ class CycleGANSemanticMaskModel(BaseModel):
         if 'B_label' in input:
             self.input_B_label = input['B_label'].to(self.device).squeeze(1) # beniz: unused
             #self.image_paths = input['B_paths'] # Hack!! forcing the labels to corresopnd to B domain
+
+        if opt.pool_size_failed>0:
+            if self.criterionGAN(self.netD_A(self.fake_B), True)>0.5:
+                real_A_failed=self.real_A_pool_failed.get_element()
+            else:
+                real_A_failed=self.real_A_pool_failed.query(self.real_A)
+
+            if self.criterionGAN(self.netD_B(self.fake_A), True)>0.5:
+                real_B_failed=self.real_B_pool_failed.get_element()
+            else:
+                real_B_failed=self.real_B_pool_failed.query(self.real_B)
+
+        self.fake_B_failed = self.netG_A(self.real_A_failed)
+        self.fake_A_failed = self.netG_B(self.real_B_failed)
+        
 
     def forward(self):
         self.fake_B = self.netG_A(self.real_A)
@@ -288,7 +308,8 @@ class CycleGANSemanticMaskModel(BaseModel):
         self.pred_fake_B = self.netf_s(self.fake_B)
         self.pfB = F.log_softmax(self.pred_fake_B,dim=d)#.argmax(dim=d)
         self.pfB_max = self.pfB.argmax(dim=d)
-           
+
+        
     def backward_D_basic(self, netD, real, fake):
         # Real
         pred_real = netD(real)
@@ -427,6 +448,8 @@ class CycleGANSemanticMaskModel(BaseModel):
             self.set_requires_grad([self.netD_A, self.netD_B], True)
         self.optimizer_D.zero_grad()   # set D_A and D_B's gradients to zero
 
+        self.niter = self.niter +1
+        
         if self.disc_in_mask:
             self.backward_D_A_mask_in()
             self.backward_D_B_mask_in()
