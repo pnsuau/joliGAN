@@ -117,10 +117,8 @@ class CUTModel(BaseModel):
 
             self.niter=0
 
-            self.cross_entropy_loss = torch.nn.CrossEntropyLoss(reduction='none')
-
             self.nb_preds=int(torch.prod(torch.tensor(self.netD(torch.zeros([1,opt.input_nc,opt.crop_size,opt.crop_size], dtype=torch.float,device=self.device)).shape)))
-
+            self.criterionContrastive = loss.ContrastiveLoss(self.nb_preds)
             ###Making groups
             self.networks_groups = []
 
@@ -206,7 +204,7 @@ class CUTModel(BaseModel):
         if self.opt.lambda_GAN > 0.0:
             pred_fake = self.netD(fake)
             if self.opt.use_contrastive_loss_D:
-                self.loss_G_GAN = self.criterionContrastive(-self.netD_A(self.real_B),-self.netD_A(self.fake_B))
+                self.loss_G_GAN = self.criterionContrastive(-self.netD(self.real_B),-self.netD(self.fake_B))
             else:
                 self.loss_G_GAN = self.criterionGAN(pred_fake, True).mean() * self.opt.lambda_GAN
         else:
