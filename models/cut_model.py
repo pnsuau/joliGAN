@@ -58,8 +58,8 @@ class CUTModel(BaseModel):
 
         return parser
 
-    def __init__(self, opt):
-        BaseModel.__init__(self, opt)
+    def __init__(self, opt,rank):
+        BaseModel.__init__(self, opt,rank)
 
         # specify the training losses you want to print out.
         # The training/test scripts will call <BaseModel.get_current_losses>
